@@ -1,4 +1,6 @@
 # Smart Campus Sensor & Room Management API
+# J.A.A.Imsari 
+# 20241587 
 
 A RESTful API built with **JAX-RS (Jersey)** and an embedded **Grizzly** HTTP server for managing campus rooms and IoT sensors.
 
@@ -243,7 +245,9 @@ Expected: **200 OK** — returns full reading history for TEMP-001
 
 ## Report: Answers to Coursework Questions
 
-### Part 1.1 — JAX-RS Resource Lifecycle
+### Part 1: Service Architecture & Setup
+
+### Part 1.1 — Project & Application Configuration
 
 By default, JAX-RS creates a new instance of every resource class for each incoming HTTP request (request-scoped). This is the per-request lifecycle defined in the JAX-RS specification.
 
@@ -253,7 +257,7 @@ Furthermore, since multiple requests can arrive simultaneously and each gets its
 
 ---
 
-### Part 1.2 — HATEOAS
+### Part 1.2 — The ”Discovery” Endpoint
 
 HATEOAS (Hypermedia As The Engine Of Application State) means that API responses include hyperlinks to related actions and resources, not just data. For example, the discovery endpoint returns links to the rooms and sensors collections.
 
@@ -261,7 +265,9 @@ This benefits client developers because the client does not need to hard-code UR
 
 ---
 
-### Part 2.1 — Returning IDs vs Full Objects
+### Part 2: Room Management
+
+### Part 2.1 — RoomResource Implementation 
 
 Returning only IDs in a list minimises the response payload, which reduces network bandwidth. However, it forces the client to make a separate GET request for each ID to retrieve the full details, resulting in N+1 requests and increased latency.
 
@@ -269,19 +275,21 @@ Returning full objects in the list provides all data in one request, reducing ro
 
 ---
 
-### Part 2.2 — Idempotency of DELETE
+### Part 2.2 —  RoomDeletion & Safety Logic 
 
 The DELETE operation in this implementation is idempotent in terms of server state. The first DELETE call on an existing room removes it and returns 204 No Content. A second identical DELETE call returns 404 Not Found because the room no longer exists. The server state is the same after both calls (the room is gone), which satisfies the idempotency requirement of the HTTP specification. What matters for idempotency is the resource state, not the status code.
 
 ---
 
-### Part 3.1 — @Consumes and Content-Type Mismatch
+### Part 3: Sensor Operations & Linking
+
+### Part 3.1 — Sensor Resource & Integrity
 
 When a resource method is annotated with @Consumes(MediaType.APPLICATION_JSON), JAX-RS checks the Content-Type header of the incoming request. If a client sends text/plain or application/xml instead of application/json, JAX-RS cannot find a matching resource method and returns HTTP 415 Unsupported Media Type automatically. The request never reaches the resource method body. This is handled entirely by the JAX-RS runtime.
 
 ---
 
-### Part 3.2 — @QueryParam vs Path Parameter for Filtering
+### Part 3.2 — Filtered Retrieval & Search
 
 Using a query parameter (GET /sensors?type=CO2) is superior for filtering collections. Query parameters are optional by design — their absence simply returns the full unfiltered list. They clearly communicate intent: the path identifies the resource, while the query string refines how that collection is returned.
 
@@ -289,7 +297,9 @@ Using a path parameter (/sensors/type/CO2) implies that type/CO2 is a distinct r
 
 ---
 
-### Part 4.1 — Sub-Resource Locator Pattern
+### Part 4: Deep Nesting with Sub- Resources 
+
+### Part 4.1 — The Sub-Resource Locator Pattern
 
 The sub-resource locator pattern delegates handling of a nested path to a separate class. In this project, SensorResource has a method annotated with @Path("/{sensorId}/readings") that returns an instance of SensorReadingResource rather than handling the request itself.
 
@@ -297,7 +307,9 @@ The architectural benefit is separation of concerns. SensorResource is responsib
 
 ---
 
-### Part 5.1 — HTTP 422 vs HTTP 404
+### Part 5: Advanced Error Handling, Exception Mapping & Logging
+
+### Part 5.2 — Dependency Validation (422 Unprocessable Entity)
 
 When a client sends a valid JSON payload that contains a reference to a resource that does not exist (e.g., a roomId that is not in the system), a 404 Not Found is semantically misleading. 404 implies the requested URL/endpoint was not found, but the endpoint /api/v1/sensors was found correctly — the problem is with the content of the request body.
 
@@ -305,7 +317,7 @@ HTTP 422 Unprocessable Entity is more accurate because it signals that the serve
 
 ---
 
-### Part 5.2 — Security Risks of Exposing Stack Traces
+### Part 5.4 — The Global Safety Net (500) 
 
 Exposing Java stack traces to external API consumers is a significant security risk:
 
@@ -318,7 +330,7 @@ The GlobalExceptionMapper in this project logs the full trace server-side while 
 
 ---
 
-### Part 5.3 (Filter) — Why Filters for Cross-Cutting Concerns
+### Part 5.5  — API Request & Response Logging Filters
 
 Inserting Logger.info() calls manually into every resource method violates the DRY (Don't Repeat Yourself) principle. If a new endpoint is added and the developer forgets to add logging, that endpoint is silently unobserved.
 
