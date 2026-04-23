@@ -4,6 +4,22 @@ A RESTful API built with **JAX-RS (Jersey)** and an embedded **Grizzly** HTTP se
 
 ---
 
+## Technology Stack
+
+| Component | Technology |
+|-----------|------------|
+| Language | Java 11 |
+| Framework | JAX-RS (Jakarta RESTful Web Services) |
+| Implementation | Jersey 2.39.1 |
+| Embedded Server | Grizzly HTTP Server |
+| JSON Support | Jackson (via jersey-media-json-jackson) |
+| Build Tool | Maven 3.6+ |
+| Data Storage | ConcurrentHashMap (in-memory, no database) |
+| IDE Used | Apache NetBeans IDE 28 |
+| API Testing Tool | Postman |
+
+---
+
 ## Project Structure
 
 ```
@@ -37,15 +53,16 @@ src/main/java/com/smartcampus/
 ### Prerequisites
 - Java 11 or higher
 - Maven 3.6+
-- NetBeans IDE (recommended) or any IDE with Maven support
+- Apache NetBeans IDE (recommended) or any IDE with Maven support
+- Postman (for API testing)
 
-### Build
+### Step 1 — Build
 ```bash
 mvn clean package
 ```
-This produces `target/smart-campus-api-1.0-SNAPSHOT.jar` (a fat JAR with all dependencies).
+This produces `target/smart-campus-api-1.0-SNAPSHOT.jar` (a fat JAR with all dependencies bundled).
 
-### Run
+### Step 2 — Run
 ```bash
 java -jar target/smart-campus-api-1.0-SNAPSHOT.jar
 ```
@@ -53,11 +70,25 @@ The server starts at: **http://localhost:8080/api/v1/**
 
 Press `ENTER` in the terminal to stop the server.
 
-### Run in NetBeans
-1. Open project in NetBeans (File → Open Project)
-2. Right-click project → Clean and Build
-3. Right-click project → Run
-4. Select `com.smartcampus.Main` as the main class
+### Run in NetBeans (Recommended)
+1. Open NetBeans IDE
+2. File → Open Project → select the `smartcampus` folder
+3. Right-click project → **Clean and Build** → wait for BUILD SUCCESS
+4. Right-click project → **Run**
+5. Select `com.smartcampus.Main` as the main class when prompted
+6. Server starts on port 8080 — output window shows:
+   ```
+   INFO: Smart Campus API started at http://localhost:8080/api/v1/
+   INFO: Press ENTER to stop the server...
+   ```
+
+### Step 3 — Test with Postman
+1. Download and install Postman from https://www.postman.com/downloads/
+2. Open Postman
+3. Create a new request tab
+4. Set the HTTP method and URL as shown in the test cases below
+5. For POST requests: click Body → raw → select JSON from dropdown
+6. Click Send
 
 ---
 
@@ -67,105 +98,138 @@ Press `ENTER` in the terminal to stop the server.
 |--------|------|-------------|
 | GET | /api/v1/discovery | API discovery / metadata |
 | GET | /api/v1/rooms | List all rooms |
-| POST | /api/v1/rooms | Create a room |
-| GET | /api/v1/rooms/{id} | Get one room |
-| DELETE | /api/v1/rooms/{id} | Delete a room (409 if has sensors) |
+| POST | /api/v1/rooms | Create a room (201 Created) |
+| GET | /api/v1/rooms/{id} | Get one room by ID |
+| DELETE | /api/v1/rooms/{id} | Delete room (409 if has sensors) |
 | GET | /api/v1/sensors | List all sensors (optional ?type= filter) |
-| POST | /api/v1/sensors | Register a sensor (422 if roomId invalid) |
-| GET | /api/v1/sensors/{id} | Get one sensor |
+| POST | /api/v1/sensors | Register sensor (422 if roomId invalid) |
+| GET | /api/v1/sensors/{id} | Get one sensor by ID |
 | GET | /api/v1/sensors/{id}/readings | Get reading history |
-| POST | /api/v1/sensors/{id}/readings | Add a new reading (403 if MAINTENANCE) |
+| POST | /api/v1/sensors/{id}/readings | Add reading (403 if MAINTENANCE) |
 
 ---
 
-## Sample curl Commands
+## Sample curl Commands (14 Test Cases)
 
-### 1. Discovery endpoint
+> All tests were verified using **Postman** on **Windows 11**.
+> Server: **Grizzly HTTP Server** running on **http://localhost:8080**
+
+### Test 1 — Discovery endpoint
 ```bash
 curl -X GET http://localhost:8080/api/v1/discovery
 ```
+Expected: **200 OK** — returns API metadata with version, contact and resource links
 
-### 2. Get all rooms
+### Test 2 — Get all rooms
 ```bash
 curl -X GET http://localhost:8080/api/v1/rooms
 ```
+Expected: **200 OK** — returns list of all rooms
 
-### 3. Create a new room
+### Test 3 — Create a new room
 ```bash
 curl -X POST http://localhost:8080/api/v1/rooms \
   -H "Content-Type: application/json" \
-  -d '{"id":"LAB-205","name":"AI Research Lab","capacity":20}'
+  -d '{"id":"HALL-01","name":"Main Hall","capacity":100}'
 ```
+Expected: **201 Created** — returns created room object with Location header
 
-### 4. Get a specific room
+### Test 4 — Get a specific room by ID
 ```bash
 curl -X GET http://localhost:8080/api/v1/rooms/LIB-301
 ```
+Expected: **200 OK** — returns room details with linked sensor IDs
 
-### 5. Delete a room with sensors (expect 409 Conflict)
+### Test 5 — Delete room WITH sensors (business logic check)
 ```bash
 curl -X DELETE http://localhost:8080/api/v1/rooms/LIB-301
 ```
+Expected: **409 Conflict** — room has sensors assigned, deletion blocked
 
-### 6. Get all sensors
+### Test 6 — Delete room WITHOUT sensors (success)
+```bash
+curl -X DELETE http://localhost:8080/api/v1/rooms/HALL-01
+```
+Expected: **204 No Content** — room deleted successfully
+
+### Test 7 — Get all sensors
 ```bash
 curl -X GET http://localhost:8080/api/v1/sensors
 ```
+Expected: **200 OK** — returns list of all sensors with status and currentValue
 
-### 7. Get sensors filtered by type
+### Test 8 — Filter sensors by type
 ```bash
 curl -X GET "http://localhost:8080/api/v1/sensors?type=Temperature"
 ```
+Expected: **200 OK** — returns only Temperature sensors
 
-### 8. Register a sensor with invalid roomId (expect 422)
+### Test 9 — Register sensor with invalid roomId
 ```bash
 curl -X POST http://localhost:8080/api/v1/sensors \
   -H "Content-Type: application/json" \
   -d '{"id":"BAD-001","type":"CO2","status":"ACTIVE","currentValue":0,"roomId":"FAKE-999"}'
 ```
+Expected: **422 Unprocessable Entity** — roomId does not exist in the system
 
-### 9. Register a valid sensor
+### Test 10 — Register a valid sensor
 ```bash
 curl -X POST http://localhost:8080/api/v1/sensors \
   -H "Content-Type: application/json" \
-  -d '{"id":"TEMP-002","type":"Temperature","status":"ACTIVE","currentValue":22.0,"roomId":"LAB-205"}'
+  -d '{"id":"TEMP-099","type":"Temperature","status":"ACTIVE","currentValue":20.0,"roomId":"LAB-101"}'
 ```
+Expected: **201 Created** — sensor registered and linked to room LAB-101
 
-### 10. Post a reading to MAINTENANCE sensor (expect 403)
+### Test 11 — Get a specific sensor by ID
+```bash
+curl -X GET http://localhost:8080/api/v1/sensors/TEMP-001
+```
+Expected: **200 OK** — returns sensor details including currentValue
+
+### Test 12 — Post reading to MAINTENANCE sensor
 ```bash
 curl -X POST http://localhost:8080/api/v1/sensors/OCC-001/readings \
   -H "Content-Type: application/json" \
-  -d '{"value":5}'
+  -d '{"value":5.0}'
 ```
+Expected: **403 Forbidden** — sensor OCC-001 is under MAINTENANCE
 
-### 11. Post a valid reading (updates parent sensor currentValue)
+### Test 13 — Post a valid reading
 ```bash
 curl -X POST http://localhost:8080/api/v1/sensors/TEMP-001/readings \
   -H "Content-Type: application/json" \
   -d '{"value":99.9}'
 ```
+Expected: **201 Created** — reading stored with UUID and timestamp, parent sensor currentValue updated to 99.9
 
-### 12. Get reading history for a sensor
+### Test 14 — Get reading history
 ```bash
 curl -X GET http://localhost:8080/api/v1/sensors/TEMP-001/readings
 ```
+Expected: **200 OK** — returns full reading history for TEMP-001
 
 ---
 
-## Postman Testing Guide
+## Postman Testing Table
 
-Import and test the following requests in Postman:
+> Tested on: **Postman v11** | Server: **Grizzly embedded HTTP server** | Platform: **Windows 11**
 
-1. **GET** `http://localhost:8080/api/v1/discovery` — API metadata
-2. **GET** `http://localhost:8080/api/v1/rooms` — List all rooms
-3. **POST** `http://localhost:8080/api/v1/rooms` with JSON body — Create room (201)
-4. **DELETE** `http://localhost:8080/api/v1/rooms/LIB-301` — 409 Conflict (has sensors)
-5. **POST** `http://localhost:8080/api/v1/sensors` with fake roomId — 422 Unprocessable
-6. **POST** `http://localhost:8080/api/v1/sensors/OCC-001/readings` — 403 Forbidden (MAINTENANCE)
-7. **POST** `http://localhost:8080/api/v1/sensors/TEMP-001/readings` with value — 201 Created
-8. **GET** `http://localhost:8080/api/v1/sensors?type=Temperature` — Filtered list
-9. **GET** `http://localhost:8080/api/v1/sensors/TEMP-001` — Verify currentValue updated to 99.9
-10. **GET** `http://localhost:8080/api/v1/sensors/TEMP-001/readings` — Reading history
+| # | Method | URL | Body | Expected Result |
+|---|--------|-----|------|-----------------|
+| 1 | GET | /api/v1/discovery | — | 200 OK |
+| 2 | GET | /api/v1/rooms | — | 200 OK |
+| 3 | POST | /api/v1/rooms | `{"id":"HALL-01","name":"Main Hall","capacity":100}` | 201 Created |
+| 4 | GET | /api/v1/rooms/LIB-301 | — | 200 OK |
+| 5 | DELETE | /api/v1/rooms/LIB-301 | — | 409 Conflict |
+| 6 | DELETE | /api/v1/rooms/HALL-01 | — | 204 No Content |
+| 7 | GET | /api/v1/sensors | — | 200 OK |
+| 8 | GET | /api/v1/sensors?type=Temperature | — | 200 OK |
+| 9 | POST | /api/v1/sensors | `{"id":"BAD-001","roomId":"FAKE-999",...}` | 422 Unprocessable |
+| 10 | POST | /api/v1/sensors | `{"id":"TEMP-099","roomId":"LAB-101",...}` | 201 Created |
+| 11 | GET | /api/v1/sensors/TEMP-001 | — | 200 OK |
+| 12 | POST | /api/v1/sensors/OCC-001/readings | `{"value":5.0}` | 403 Forbidden |
+| 13 | POST | /api/v1/sensors/TEMP-001/readings | `{"value":99.9}` | 201 Created |
+| 14 | GET | /api/v1/sensors/TEMP-001/readings | — | 200 OK |
 
 ---
 
@@ -175,7 +239,7 @@ Import and test the following requests in Postman:
 
 By default, JAX-RS creates a new instance of every resource class for each incoming HTTP request (request-scoped). This is the per-request lifecycle defined in the JAX-RS specification.
 
-This has a direct impact on in-memory data management. Because each request gets a fresh resource object, you cannot store your data inside instance fields of the resource class — it would be lost after the request ends. The solution used in this project is a singleton DataStore class accessed via DataStore.getInstance(). The data lives in the singleton (not in the resource), so it persists across all requests.
+This has a direct impact on in-memory data management. Because each request gets a fresh resource object, data cannot be stored as instance fields of the resource class — it would be lost after the request ends. The solution used in this project is a singleton DataStore class accessed via DataStore.getInstance(). The data lives in the singleton, not in the resource, so it persists across all requests.
 
 Furthermore, since multiple requests can arrive simultaneously and each gets its own resource instance accessing the same singleton, thread-safety is critical. This project uses ConcurrentHashMap instead of a plain HashMap. ConcurrentHashMap allows concurrent reads and uses segment-level locking for writes, preventing race conditions and data corruption without requiring manual synchronized blocks.
 
@@ -183,7 +247,7 @@ Furthermore, since multiple requests can arrive simultaneously and each gets its
 
 ### Part 1.2 — HATEOAS
 
-HATEOAS (Hypermedia As The Engine Of Application State) means that API responses include hyperlinks to related actions and resources, not just data. For example, the discovery endpoint returns links to rooms and sensors collections.
+HATEOAS (Hypermedia As The Engine Of Application State) means that API responses include hyperlinks to related actions and resources, not just data. For example, the discovery endpoint returns links to the rooms and sensors collections.
 
 This benefits client developers because the client does not need to hard-code URLs or consult external documentation to navigate the API. The API is self-describing — the client simply follows the links provided in the response. This reduces coupling between the client and server, meaning the server can change URLs without breaking clients that navigate via links rather than hard-coded paths.
 
@@ -199,7 +263,7 @@ Returning full objects in the list provides all data in one request, reducing ro
 
 ### Part 2.2 — Idempotency of DELETE
 
-The DELETE operation in this implementation is idempotent in terms of server state. The first DELETE call on an existing room removes it and returns 204 No Content. A second identical DELETE call returns 404 Not Found because the room no longer exists. The server state is the same after both calls (the room is gone), which satisfies the idempotency requirement of the HTTP specification. What matters is the resource state, not the status code.
+The DELETE operation in this implementation is idempotent in terms of server state. The first DELETE call on an existing room removes it and returns 204 No Content. A second identical DELETE call returns 404 Not Found because the room no longer exists. The server state is the same after both calls (the room is gone), which satisfies the idempotency requirement of the HTTP specification. What matters for idempotency is the resource state, not the status code.
 
 ---
 
@@ -246,8 +310,8 @@ The GlobalExceptionMapper in this project logs the full trace server-side while 
 
 ---
 
-### Part 5.3 (Filter) — Why Filters for Cross-Cutting Concerns
+### Part 5 (Filter) — Why Filters for Cross-Cutting Concerns
 
 Inserting Logger.info() calls manually into every resource method violates the DRY (Don't Repeat Yourself) principle. If a new endpoint is added and the developer forgets to add logging, that endpoint is silently unobserved.
 
-A JAX-RS ContainerRequestFilter / ContainerResponseFilter is applied automatically to every single request and response by the runtime, regardless of which resource method handles it. This guarantees consistent coverage with zero risk of omission.
+A JAX-RS ContainerRequestFilter / ContainerResponseFilter is applied automatically to every single request and response by the runtime, regardless of which resource method handles it. This guarantees consistent coverage with zero risk of omission. It also means logging behaviour can be changed in one place without touching any resource class.
