@@ -106,10 +106,11 @@ Press `ENTER` in the terminal to stop the server.
 | GET | /api/v1/sensors/{id} | Get one sensor by ID |
 | GET | /api/v1/sensors/{id}/readings | Get reading history |
 | POST | /api/v1/sensors/{id}/readings | Add reading (403 if MAINTENANCE) |
+| GET | /api/v1/rooms/../../etc | Trigger global error (500 with no stack trace) |
 
 ---
 
-## Sample curl Commands (14 Test Cases)
+## Sample curl Commands (15 Test Cases)
 
 > All tests were verified using **Postman** on **Windows 11**.
 > Server: **Grizzly HTTP Server** running on **http://localhost:8080**
@@ -202,7 +203,13 @@ curl -X POST http://localhost:8080/api/v1/sensors/TEMP-001/readings \
 ```
 Expected: **201 Created** — reading stored with UUID and timestamp, parent sensor currentValue updated to 99.9
 
-### Test 14 — Get reading history
+### Test 14 — Trigger 500 Global Safety Net (prove no stack trace)
+```bash
+curl -X GET http://localhost:8080/api/v1/rooms/../../etc
+```
+Expected: **500 Internal Server Error** — clean JSON response with NO Java stack trace exposed
+
+### Test 15 — Get reading history
 ```bash
 curl -X GET http://localhost:8080/api/v1/sensors/TEMP-001/readings
 ```
@@ -229,7 +236,8 @@ Expected: **200 OK** — returns full reading history for TEMP-001
 | 11 | GET | /api/v1/sensors/TEMP-001 | — | 200 OK |
 | 12 | POST | /api/v1/sensors/OCC-001/readings | `{"value":5.0}` | 403 Forbidden |
 | 13 | POST | /api/v1/sensors/TEMP-001/readings | `{"value":99.9}` | 201 Created |
-| 14 | GET | /api/v1/sensors/TEMP-001/readings | — | 200 OK |
+| 14 | GET | /api/v1/rooms/../../etc | — | 500 Internal Server Error (no stack trace) |
+| 15 | GET | /api/v1/sensors/TEMP-001/readings | — | 200 OK |
 
 ---
 
@@ -310,7 +318,7 @@ The GlobalExceptionMapper in this project logs the full trace server-side while 
 
 ---
 
-### Part 5 (Filter) — Why Filters for Cross-Cutting Concerns
+### Part 5.3 (Filter) — Why Filters for Cross-Cutting Concerns
 
 Inserting Logger.info() calls manually into every resource method violates the DRY (Don't Repeat Yourself) principle. If a new endpoint is added and the developer forgets to add logging, that endpoint is silently unobserved.
 
