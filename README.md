@@ -1,3 +1,6 @@
+
+## Smart Campus REST API
+
 A RESTful API built with **JAX-RS (Jersey)** and an embedded **Grizzly** HTTP server for managing campus rooms and IoT sensors.
 
 ---
